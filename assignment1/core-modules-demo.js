@@ -9,14 +9,14 @@ if (!fs.existsSync(sampleFilesDir)) {
 
 // OS module
 console.log(`Platform: ${os.platform()}`);
-console.log(`CPU: ${os.arch()}`);
+console.log("CPU model:", os.cpus()[0].model);
 
 const totalMemGB = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(2);
 console.log(`Total Memory: ${totalMemGB}GB`);
 
 // Path module
 const filePath = path.join(__dirname, "sample-files", "demo.txt");
-console.log(`Joined path:${filePath}`);
+console.log(`Joined path: ${filePath}`);
 
 // fs.promises API
 const fsPromises = require("fs/promises");

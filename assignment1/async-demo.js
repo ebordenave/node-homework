@@ -10,7 +10,7 @@ fs.writeFileSync(filePath, "Hello, async world!");
 //   if (err) {
 //     console.log(err.message);
 //   } else {
-//     fs.readFile(filePath, "utf8", (err, data) => {
+//     fs.readFileCallbackStyle(filePath, "utf8", (err, data) => {
 //       if (err) {
 //         console.log(err.message);
 //       } else {
@@ -20,9 +20,9 @@ fs.writeFileSync(filePath, "Hello, async world!");
 //   }
 // });
 
-//! Reads a file asynchronously using fs.readFile
+//! Reads a file asynchronously using the callback-based API
 // 1. Callback style
-fs.readFile(filePath, "utf8", (err, content) => {
+fs.readFileCallbackStyle(filePath, "utf8", (err, content) => {
   if (err) {
     console.log("File read failed: ", err);
     return;
@@ -31,22 +31,21 @@ fs.readFile(filePath, "utf8", (err, content) => {
 });
 
 // 2. Promise style
-function readTextFile(filePath) {
+function readTextFilePromiseStyle(filePath) {
   return new Promise((resolve, reject) => {
-    fs.readFile(filePath, "utf8", (err, content) => {
+    fs.readFileCallbackStyle(filePath, "utf8", (err, content) => {
       if (err) {
         reject(err);
         return;
       }
-
-      // otherwise
       resolve(content);
     });
   });
 }
 
-// Converts the callback code to use Promises, then async/await
-readTextFile(filePath)
+// Convert the callback API into a Promise-based function
+readTextFilePromiseStyle(filePath)
+  // Consume the Promise with .then()/.catch()
   .then((content) => {
     console.log("Promise read: " + content);
   })
@@ -57,7 +56,7 @@ readTextFile(filePath)
 // 3. Async/Await style
 async function run() {
   try {
-    const content = await readTextFile(filePath);
+    const content = await readTextFilePromiseStyle(filePath);
     console.log("Async/Await read: " + content);
   } catch (err) {
     console.log("An error occurred:", err.message);
@@ -65,6 +64,3 @@ async function run() {
 }
 
 run();
-// Callback read: Hello, async world!
-// Promise read: Hello, async world!
-// Async/Await read: Hello, async world!
