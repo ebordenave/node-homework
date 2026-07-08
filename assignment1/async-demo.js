@@ -2,10 +2,10 @@ const fs = require("fs"); // File system operations
 const path = require("path"); // File and directory paths
 const filePath = path.join(__dirname, "sample-files", "sample.txt");
 
-//! Write a sample file for demonstration
+// Write a sample file for demonstration
 fs.writeFileSync(filePath, "Hello, async world!");
 
-//! Callback hell example (test and leave it in comments): (high-level)
+// Callback hell example (test and leave it in comments): (high-level)
 // fs.writeFile(filePath, "Hello, async world!", (err) => {
 //   if (err) {
 //     console.log(err.message);
@@ -20,7 +20,7 @@ fs.writeFileSync(filePath, "Hello, async world!");
 //   }
 // });
 
-//! Reads a file asynchronously using the callback-based API
+// Reads a file asynchronously using the callback-based API
 // 1. Callback style
 fs.readFileCallbackStyle(filePath, "utf8", (err, content) => {
   if (err) {
