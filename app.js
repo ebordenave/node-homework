@@ -1,9 +1,5 @@
 const express = require("express");
-const timeRouter = require("./routes/timeRoutes"); //! this may end up getting removed  or modified later
 const userRouter = require("./routes/userRoutes");
-
-const notFound = require("./middleware/not-found");
-const errorHandler = require("./middleware/error-handler");
 
 const app = express();
 
@@ -14,10 +10,6 @@ global.tasks = [];
 app.use(express.json());
 
 app.use("/api/users", userRouter);
-app.use("/api", timeRouter); //! this may end up getting removed or modified later
-app.use(notFound);
-
-app.use(errorHandler);
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
@@ -28,6 +20,12 @@ app.post("/testpost", (req, res) => {
     message: "POST route works",
   });
 });
+
+const notFound = require("./middleware/not-found");
+app.use(notFound);
+
+const errorHandler = require("./middleware/error-handler");
+app.use(errorHandler);
 
 const port = process.env.PORT || 3000;
 

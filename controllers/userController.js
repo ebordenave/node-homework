@@ -1,19 +1,20 @@
 global.users;
-global.user_id = 1;
 
 function register(req, res) {
   const { name, email, password } = req.body;
 
+  if (global.users.some((user) => user.email === email)) {
+    return res.status(401).json();
+  }
+
   const user = {
-    id: global.user_id,
     email,
     name,
     password,
   };
-  global.user_id = user.id;
 
+  global.user_id = user;
   global.users.push(user);
-  global.user_id += 1;
 
   res.status(201).json({
     name,
@@ -29,7 +30,7 @@ function logon(req, res) {
   if (currentUser) {
     const name = currentUser.name;
     if (currentUser.password === password) {
-      global.user_id = currentUser.id;
+      global.user_id = currentUser;
       res.status(200).json({
         name,
         email,
