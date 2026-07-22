@@ -1,21 +1,22 @@
 global.users;
-global.user_id = 1;
 
 function register(req, res) {
   const { name, email, password } = req.body;
 
+  if (global.users.some((user) => user.email === email)) {
+    return res.status(400).json();
+  }
+
   const user = {
-    id: global.user_id,
     email,
     name,
     password,
   };
-  global.user_id = user.id;
 
+  global.user_id = user;
   global.users.push(user);
-  global.user_id += 1;
 
-  res.status(201).json({
+  return res.status(201).json({
     name,
     email,
   });
@@ -29,16 +30,16 @@ function logon(req, res) {
   if (currentUser) {
     const name = currentUser.name;
     if (currentUser.password === password) {
-      global.user_id = currentUser.id;
-      res.status(200).json({
+      global.user_id = currentUser;
+      return res.status(200).json({
         name,
         email,
       });
     } else {
-      res.status(401).json();
+      return res.status(401).json();
     }
   } else {
-    res.status(401).json();
+    return res.status(401).json();
   }
 }
 
