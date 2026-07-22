@@ -24,7 +24,7 @@ router.post("/adopt", (req, res, next) => {
   //POST /adopt with nonexistent or unavailable dog responds with status 404 (1 ms)
   const dog = dogs.find((dog) => dog.name === dogName);
 
-  if (status === "unavailable" || !dog) {
+  if (dog?.status !== "available") {
     return next(new NotFoundError("not found or not available"));
   }
 
