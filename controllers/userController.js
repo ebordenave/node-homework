@@ -31,15 +31,15 @@ function logon(req, res) {
     const name = currentUser.name;
     if (currentUser.password === password) {
       global.user_id = currentUser;
-      res.status(200).json({
+      return res.status(200).json({
         name,
         email,
       });
     } else {
-      res.status(401).json();
+      return res.status(401).json();
     }
   } else {
-    res.status(401).json();
+    return res.status(401).json();
   }
 }
 
