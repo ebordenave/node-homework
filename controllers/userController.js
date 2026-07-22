@@ -4,7 +4,7 @@ function register(req, res) {
   const { name, email, password } = req.body;
 
   if (global.users.some((user) => user.email === email)) {
-    return res.status(401).json();
+    return res.status(400).json();
   }
 
   const user = {
@@ -16,7 +16,7 @@ function register(req, res) {
   global.user_id = user;
   global.users.push(user);
 
-  res.status(201).json({
+  return res.status(201).json({
     name,
     email,
   });

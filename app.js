@@ -11,15 +11,16 @@ app.use(express.json());
 
 app.use("/api/users", userRouter);
 
-app.get("/", (req, res) => {
-  res.send("Hello, World!");
-});
+//! delete these extra routes
+// app.get("/", (req, res) => {
+//   res.send("Hello, World!");
+// });
 
-app.post("/testpost", (req, res) => {
-  res.status(200).json({
-    message: "POST route works",
-  });
-});
+// app.post("/testpost", (req, res) => {
+//   res.status(200).json({
+//     message: "POST route works",
+//   });
+// });
 
 const notFound = require("./middleware/not-found");
 app.use(notFound);
