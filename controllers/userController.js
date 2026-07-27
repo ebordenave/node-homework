@@ -2,7 +2,6 @@ const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 
-global.users;
 const { userSchema } = require("../validation/userSchema");
 
 async function hashPassword(password) {
@@ -12,6 +11,7 @@ async function hashPassword(password) {
 }
 
 async function comparePassword(inputPassword, storedHash) {
+  if (!storedHash) return false;
   const [salt, key] = storedHash.split(":");
   const keyBuffer = Buffer.from(key, "hex");
   const derivedKey = await scrypt(inputPassword, salt, 64);
@@ -21,29 +21,24 @@ async function comparePassword(inputPassword, storedHash) {
 async function register(req, res) {
   if (!req.body) req.body = {};
 
-  // validation
-  const { error, value } = userSchema.validate(req.body, { abortEarly: false });
+  const { error, value } = userSchema.validate(req.body, {
+    abortEarly: false,
+  });
 
-  // If error exists, return `400`.
   if (error) {
     return res.status(400).json({
       message: error.message,
     });
   }
 
-  // otherwise
-  // destructure from value
   const { name, email, password } = value;
 
-  // Check duplicate email
   if (global.users.some((user) => user.email === email)) {
     return res.status(400).json();
   }
 
-  // Hash password.
   const hashedPassword = await hashPassword(password);
 
-  // Store hashedPassword
   const user = {
     email,
     name,
@@ -53,7 +48,6 @@ async function register(req, res) {
   global.user_id = user;
   global.users.push(user);
 
-  // return name, email
   return res.status(201).json({
     name,
     email,
@@ -63,7 +57,9 @@ async function register(req, res) {
 async function logon(req, res) {
   const { email, password } = req.body;
 
-  const currentUser = global.users.find((user) => user.email === email);
+  const currentUser = global.users.find(
+    (user) => user.email === email,
+  );
 
   if (currentUser) {
     const goodCredentials = await comparePassword(

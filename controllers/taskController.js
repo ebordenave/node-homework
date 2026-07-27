@@ -13,8 +13,11 @@ const taskCounter = (() => {
 
 function create(req, res) {
   if (!req.body) req.body = {};
-  const { error, value } = taskSchema.validate(req.body);
-  if (error) return res.status(400).json();
+  const { error, value } = taskSchema.validate(req.body, {
+    abortEarly: false,
+  });
+  if (error)
+    return res.status(400).json({ message: error.message });
 
   const newTask = {
     id: taskCounter(),
@@ -75,8 +78,6 @@ function update(req, res) {
       abortEarly: false,
     },
   );
-  console.log(error);
-  console.log(value);
 
   if (error)
     return res.status(400).json({
