@@ -1,5 +1,7 @@
 const express = require("express");
 const userRouter = require("./routes/userRoutes");
+const authMiddleware = require("./middleware/auth");
+const taskRouter = require("./routes/taskRoutes");
 
 const app = express();
 
@@ -8,19 +10,8 @@ global.users = [];
 global.tasks = [];
 
 app.use(express.json());
-
 app.use("/api/users", userRouter);
-
-//! delete these extra routes
-// app.get("/", (req, res) => {
-//   res.send("Hello, World!");
-// });
-
-// app.post("/testpost", (req, res) => {
-//   res.status(200).json({
-//     message: "POST route works",
-//   });
-// });
+app.use("/api/tasks", authMiddleware, taskRouter);
 
 const notFound = require("./middleware/not-found");
 app.use(notFound);
