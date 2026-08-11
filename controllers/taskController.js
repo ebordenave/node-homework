@@ -33,7 +33,6 @@ async function create(req, res, next) {
       data: {
         ...value,
         userId: global.user_id,
-        isCompleted: false,
       },
       select: {
         title: true,
