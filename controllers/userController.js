@@ -3,7 +3,6 @@ const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 
 const prisma = require("../db/prisma.js");
-const pool = require("../db/pg-pool.js"); //! will have to delete this later
 
 const { userSchema } = require("../validation/userSchema");
 
