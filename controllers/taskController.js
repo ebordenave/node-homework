@@ -35,7 +35,7 @@ async function create(req, res, next) {
 
     return res.status(201).json(task);
   } catch (err) {
-    return next(err); // the error handler takes care of other errors
+    return next(err);
   }
 }
 
