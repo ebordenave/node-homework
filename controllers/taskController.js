@@ -5,14 +5,6 @@ const {
 
 const prisma = require("../db/prisma");
 
-const taskCounter = (() => {
-  let lastTaskNumber = 0;
-  return () => {
-    lastTaskNumber += 1;
-    return lastTaskNumber;
-  };
-})();
-
 async function create(req, res, next) {
   if (!req.body) req.body = {};
 
@@ -177,7 +169,6 @@ async function deleteTask(req, res, next) {
 
 module.exports = {
   create,
-  taskCounter,
   index,
   show,
   update,
