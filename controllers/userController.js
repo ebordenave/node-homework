@@ -23,7 +23,6 @@ async function comparePassword(inputPassword, storedHash) {
 async function register(req, res, next) {
   if (!req.body) req.body = {};
 
-  // Do the Joi validation, so that value contains the user entry you want.
   const { error, value } = userSchema.validate(req.body, {
     abortEarly: false,
   });
@@ -34,9 +33,8 @@ async function register(req, res, next) {
       details: error.details,
     });
   }
-  // hash the password, and put it in value.hashedPassword
+
   value.hashedPassword = await hashPassword(value.password);
-  //! delete value.password as that doesn't get stored
   delete value.password;
   let user = null;
 
@@ -52,17 +50,14 @@ async function register(req, res, next) {
       err.name === "PrismaClientKnownRequestError" &&
       err.code === "P2002"
     ) {
-      // send the appropriate error back -- the email was already registered
       return res.status(400).json({
         error: "Email already registered",
       });
     } else {
-      return next(err); // the error handler takes care of other errors
+      return next(err);
     }
   }
 
-  // otherwise register succeeded, so set global.user_id with user.id, and do the
-  // appropriate res.status().json().
   global.user_id = user.id;
 
   return res.status(201).json({
@@ -107,22 +102,3 @@ module.exports = {
   logon,
   logoff,
 };
-
-// // Do the Joi validation, so that value contains the user entry you want.
-// // hash the password, and put it in value.hashedPassword
-// // delete value.password as that doesn't get stored
-// let user = null;
-// try {
-//   user = await prisma.user.create({
-//     data: { name, email, hashedPassword },
-//     select: { name: true, email: true, id: true} // specify the column values to return
-//   });
-// } catch (err) {
-//     if (err.name === "PrismaClientKnownRequestError" && err.code === "P2002") {
-//       // send the appropriate error back -- the email was already registered
-//     } else {
-//       return next(err); // the error handler takes care of other errors
-//     }
-// }
-// // otherwise register succeeded, so set global.user_id with user.id, and do the
-// // appropriate res.status().json().
