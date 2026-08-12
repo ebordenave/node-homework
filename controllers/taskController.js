@@ -64,7 +64,8 @@ async function show(req, res, next) {
   }
 
   try {
-    const task = await prisma.task.findUnique({
+    const task = await prisma.task.findUniqueOrThrow({
+      // const task = await prisma.task.findUnique({
       where: {
         id_userId: {
           id: taskId,
