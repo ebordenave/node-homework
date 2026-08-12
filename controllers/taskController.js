@@ -47,7 +47,7 @@ async function index(req, res) {
     select: { title: true, isCompleted: true, id: true },
   });
 
-  if (tasks.length <= 0) {
+  if (tasks.length === 0) {
     return res.status(404).json();
   }
 
@@ -73,11 +73,11 @@ async function show(req, res, next) {
       },
       select: { title: true, id: true, isCompleted: true },
     });
-    if (!task) {
-      return res.status(404).json({
-        message: "The task was not found.",
-      });
-    }
+    // if (!task) {
+    //   return res.status(404).json({
+    //     message: "The task was not found.",
+    //   });
+    // }
     return res.status(200).json(task);
   } catch (err) {
     if (err.code === "P2025") {
