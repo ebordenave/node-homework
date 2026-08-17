@@ -39,15 +39,6 @@ async function index(req, res) {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
-  const pagination = {
-    page,
-    limit,
-    total: totalTasks,
-    pages: Math.ceil(totalTasks / limit),
-    hasNext: page * limit < totalTasks,
-    hasPrev: page > 1,
-  };
-
   if (page < 1 || limit < 1 || limit > 100) {
     return res.status(400).json({
       message: "Invalid pagination parameters",
@@ -136,13 +127,22 @@ async function index(req, res) {
     orderBy: getOrderBy(sortBy, sortDirection),
   });
 
-  if (tasks.length === 0) {
-    return res.status(404).json();
-  }
+  // if (tasks.length === 0) {
+  //   return res.status(404).json();
+  // }
 
   const totalTasks = await prisma.task.count({
     where: whereClause,
   });
+
+  const pagination = {
+    page,
+    limit,
+    total: totalTasks,
+    pages: Math.ceil(totalTasks / limit),
+    hasNext: page * limit < totalTasks,
+    hasPrev: page > 1,
+  };
 
   return res.status(200).json({
     tasks,

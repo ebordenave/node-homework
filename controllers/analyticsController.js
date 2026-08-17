@@ -85,6 +85,12 @@ async function getUsersWithStats(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        message: "Invalid pagination parameters",
+      });
+    }
+
     const skip = (page - 1) * limit;
 
     const usersRaw = await prisma.user.findMany({
@@ -161,7 +167,7 @@ async function searchTasks(req, res) {
       t.priority AS priority,
       t.created_at AS "createdAt",
       t.user_id AS "userId",
-      u.name AS "userName",
+      u.name AS "user_name"
     FROM tasks t
     JOIN users u
       ON t.user_id = u.id
