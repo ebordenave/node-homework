@@ -38,6 +38,22 @@ async function create(req, res, next) {
 async function index(req, res) {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+
+  const pagination = {
+    page,
+    limit,
+    total: totalTasks,
+    pages: Math.ceil(totalTasks / limit),
+    hasNext: page * limit < totalTasks,
+    hasPrev: page > 1,
+  };
+
+  if (page < 1 || limit < 1 || limit > 100) {
+    return res.status(400).json({
+      message: "Invalid pagination parameters",
+    });
+  }
+
   const skip = (page - 1) * limit;
 
   const sortBy = req.query.sortBy;
@@ -69,20 +85,18 @@ async function index(req, res) {
     whereClause.isCompleted = isCompleted === "true";
   }
 
-  const { min_date } = req.query;
+  const { min_date, max_date } = req.query;
 
-  if (min_date) {
-    whereClause.createdAt = {
-      gte: new Date(min_date),
-    };
-  }
+  if (min_date || max_date) {
+    whereClause.createdAt = {};
 
-  const { max_date } = req.query;
+    if (min_date) {
+      whereClause.createdAt.gte = new Date(min_date);
+    }
 
-  if (max_date) {
-    whereClause.createdAt = {
-      lte: new Date(max_date),
-    };
+    if (max_date) {
+      whereClause.createdAt.lte = new Date(max_date);
+    }
   }
 
   function getOrderBy(sortBy, sortDirection) {
@@ -129,21 +143,6 @@ async function index(req, res) {
   const totalTasks = await prisma.task.count({
     where: whereClause,
   });
-
-  const pagination = {
-    page,
-    limit,
-    total: totalTasks,
-    pages: Math.ceil(totalTasks / limit),
-    hasNext: page * limit < totalTasks,
-    hasPrev: page > 1,
-  };
-
-  if (page < 1 || limit < 1 || limit > 100) {
-    return res.status(400).json({
-      message: "Invalid pagination parameters",
-    });
-  }
 
   return res.status(200).json({
     tasks,

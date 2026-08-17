@@ -155,8 +155,13 @@ async function searchTasks(req, res) {
 
   const results = await prisma.$queryRaw`
     SELECT
+      t.id AS id,
       t.title AS title,
-      u.name AS "userName"
+      t.is_completed AS "isCompleted",
+      t.priority AS priority,
+      t.created_at AS "createdAt",
+      t.user_id AS "userId",
+      u.name AS "userName",
     FROM tasks t
     JOIN users u
       ON t.user_id = u.id
