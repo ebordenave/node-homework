@@ -4,6 +4,7 @@ const express = require("express");
 const userRouter = require("./routes/userRoutes");
 const authMiddleware = require("./middleware/auth");
 const taskRouter = require("./routes/taskRoutes");
+const analyticsRouter = require("./routes/analyticsRoutes");
 const prisma = require("./db/prisma");
 
 const app = express();
@@ -27,6 +28,7 @@ app.get("/health", async (req, res) => {
 
 app.use("/api/users", userRouter);
 app.use("/api/tasks", authMiddleware, taskRouter);
+app.use("/api/analytics", authMiddleware, analyticsRouter);
 
 const notFound = require("./middleware/not-found");
 app.use(notFound);

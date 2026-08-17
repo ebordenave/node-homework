@@ -1,6 +1,6 @@
 const express = require("express");
 const dogs = require("../dogData");
-//! This will contain custom Errors
+
 const { ValidationError, NotFoundError } = require("../errors");
 
 const router = express.Router();
@@ -9,7 +9,6 @@ router.get("/dogs", (req, res) => {
   res.status(200).json(dogs);
 });
 
-//! In POST /adopt, throw or pass a ValidationError if required fields are missing
 router.post("/adopt", (req, res, next) => {
   const { name, address, email, dogName, status } = req.body;
 
@@ -21,7 +20,6 @@ router.post("/adopt", (req, res, next) => {
     return next(new ValidationError("Missing required fields"));
   }
 
-  //POST /adopt with nonexistent or unavailable dog responds with status 404 (1 ms)
   const dog = dogs.find((dog) => dog.name === dogName);
 
   if (dog?.status !== "available") {

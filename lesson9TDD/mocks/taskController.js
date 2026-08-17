@@ -1,10 +1,15 @@
 const prisma = require("../../db/prisma");
-const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
+const {
+  taskSchema,
+  patchTaskSchema,
+} = require("../validation/taskSchema");
 
 const whereClause = (query) => {
   const filters = [];
   if (query.find) {
-    filters.push({ title: { contains: query.find, mode: "insensitive" } });
+    filters.push({
+      title: { contains: query.find, mode: "insensitive" },
+    });
   }
   if (query.isCompleted) {
     const boolToFind = query.isCompleted === "true";
@@ -14,16 +19,25 @@ const whereClause = (query) => {
     filters.push({ priority: query.priority });
   }
   if (query.max_date) {
-    filters.push({ createdAt: { lte: new Date(query.max_date) } });
+    filters.push({
+      createdAt: { lte: new Date(query.max_date) },
+    });
   }
   if (query.min_date) {
-    filters.push({ createdAt: { gte: new Date(query.min_date) } });
+    filters.push({
+      createdAt: { gte: new Date(query.min_date) },
+    });
   }
 };
 
 const getFields = (fields) => {
   const fieldList = fields.split(",");
-  const taskAttributes = ["title", "priority", "createdAt", "id"];
+  const taskAttributes = [
+    "title",
+    "priority",
+    "createdAt",
+    "id",
+  ];
   const taskFields = fieldList.filter((field) =>
     taskAttributes.includes(field),
   );
@@ -67,7 +81,7 @@ exports.index = async (req, res) => {
       priority: true,
       createdAt: true,
       userId: true, // bug
-      User: {
+      user: {
         select: {
           name: true,
           email: true,
@@ -87,7 +101,9 @@ exports.index = async (req, res) => {
     orderBy: { createdAt: "desc" },
   });
   if (tasks.length === 0) {
-    return res.status(404).json({ message: "No tasks found for user" });
+    return res
+      .status(404)
+      .json({ message: "No tasks found for user" });
   }
   const totalTasks = await prisma.task.count({
     // where: { userId: req.user.id }, bug
@@ -111,7 +127,9 @@ exports.index = async (req, res) => {
 exports.show = async (req, res) => {
   const id = parseInt(req.params?.id);
   if (!id) {
-    return res.status(400).json({ message: "Invalid task id." });
+    return res
+      .status(400)
+      .json({ message: "Invalid task id." });
   }
 
   // Use global user_id (set during login/registration)
@@ -137,7 +155,9 @@ exports.show = async (req, res) => {
   });
 
   if (!task) {
-    return res.status(404).json({ message: "Task not found" });
+    return res
+      .status(404)
+      .json({ message: "Task not found" });
   }
 
   res.status(200).json(task);
@@ -169,19 +189,24 @@ exports.create = async (req, res) => {
 exports.update = async (req, res, next) => {
   const id = parseInt(req.params?.id);
   if (!id) {
-    return res.status(400).json({ message: "Invalid task id." });
+    return res
+      .status(400)
+      .json({ message: "Invalid task id." });
   }
   if (!req.body) {
     req.body = {};
   }
-  const { error, value } = patchTaskSchema.validate(req.body);
+  const { error, value } = patchTaskSchema.validate(
+    req.body,
+  );
   if (error) return next(error);
   let task;
   try {
     task = await prisma.task.update({
-      where: { id, 
+      where: {
+        id,
         // userId: req.user.id, bug
-       },
+      },
       data: value,
       select: {
         id: true,
@@ -193,7 +218,9 @@ exports.update = async (req, res, next) => {
     });
   } catch (err) {
     if (err.code === "P2025") {
-      return res.status(404).json({ message: "The task was not found." });
+      return res
+        .status(404)
+        .json({ message: "The task was not found." });
     }
     return next(err);
   }
@@ -230,9 +257,14 @@ exports.deleteTask = async (req, res, next) => {
 exports.bulkCreate = async (req, res, next) => {
   // Validate the tasks array
   const tasks = req.body?.tasks;
-  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+  if (
+    !tasks ||
+    !Array.isArray(tasks) ||
+    tasks.length === 0
+  ) {
     return res.status(400).json({
-      error: "Invalid request data. Expected an array of tasks.",
+      error:
+        "Invalid request data. Expected an array of tasks.",
     });
   }
 
