@@ -1,6 +1,10 @@
 const crypto = require("crypto");
+const { randomUUID } = require("crypto");
+
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
+
+const jwt = require("jsonwebtoken");
 
 const prisma = require("../db/prisma.js");
 
@@ -19,6 +23,22 @@ async function comparePassword(inputPassword, storedHash) {
   const derivedKey = await scrypt(inputPassword, salt, 64);
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
+
+const cookieFlags = (req) => {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+  };
+};
+
+const setJwtCookie = (req, res, user) => {
+  const payload = { id: user.id, csrfToken: randomUUID() };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 });
+  return payload.csrfToken;
+};
 
 async function register(req, res, next) {
   if (!req.body) req.body = {};
@@ -83,11 +103,14 @@ async function register(req, res, next) {
 
       return { user: newUser, welcomeTasks };
     });
-    global.user_id = result.user.id;
 
-    res.status(201);
-    res.json({
+    const csrfToken = setJwtCookie(req, res, result.user);
+
+    res.status(201).json({
       user: result.user,
+      name: result.user.name,
+      email: email,
+      csrfToken,
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
@@ -123,15 +146,19 @@ async function logon(req, res) {
     return res.status(401).json();
   }
   const name = user.name;
-  global.user_id = user.id;
+
+  const csrfToken = setJwtCookie(req, res, user);
+
   return res.status(200).json({
-    name,
+    name: name,
     email: normalizedEmail,
+    csrfToken,
+    transactionStatus: "success",
   });
 }
 
 function logoff(req, res) {
-  global.user_id = null;
+  res.clearCookie("jwt", cookieFlags(req));
   res.status(200).json();
 }
 
