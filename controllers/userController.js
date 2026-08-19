@@ -27,18 +27,17 @@ async function comparePassword(inputPassword, storedHash) {
 const cookieFlags = (req) => {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // only when HTTPS is available
+    secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
   };
 };
 
 const setJwtCookie = (req, res, user) => {
-  // Sign JWT
   const payload = { id: user.id, csrfToken: randomUUID() };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }); // 1 hour expiration
-  // Set cookie.  Note that the cookie flags have to be different in production and in test.
-  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 }); // 1 hour expiration
-  return payload.csrfToken; // this is needed in the body returned by logon() or register()
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 });
+  return payload.csrfToken;
 };
 
 async function register(req, res, next) {
@@ -107,23 +106,14 @@ async function register(req, res, next) {
 
     const csrfToken = setJwtCookie(req, res, result.user);
 
-    // setJwtCookie(req, res, newUser)
     res.status(201).json({
       user: result.user,
+      name: result.user.name,
       email: email,
       csrfToken,
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
-
-    // global.user_id = result.user.id;
-
-    // res.status(201);
-    // res.json({
-    //   user: result.user,
-    //   welcomeTasks: result.welcomeTasks,
-    //   transactionStatus: "success",
-    // });
 
     return;
   } catch (err) {
@@ -156,11 +146,7 @@ async function logon(req, res) {
     return res.status(401).json();
   }
   const name = user.name;
-  // req.user.id = user.id;
-  // return res.status(200).json({
-  //   name,
-  //   email: normalizedEmail,
-  // });
+
   const csrfToken = setJwtCookie(req, res, user);
 
   return res.status(200).json({
@@ -172,7 +158,6 @@ async function logon(req, res) {
 }
 
 function logoff(req, res) {
-  // req.user.id = null; I dont think this is needed
   res.clearCookie("jwt", cookieFlags(req));
   res.status(200).json();
 }

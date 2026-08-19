@@ -127,10 +127,6 @@ async function index(req, res) {
     orderBy: getOrderBy(sortBy, sortDirection),
   });
 
-  // if (tasks.length === 0) {
-  //   return res.status(404).json();
-  // }
-
   const totalTasks = await prisma.task.count({
     where: whereClause,
   });

@@ -2,15 +2,12 @@ require("dotenv").config();
 
 const express = require("express");
 const userRouter = require("./routes/userRoutes");
-// const jwtMiddleware = require("./middleware/jwtMiddleware");
 const taskRouter = require("./routes/taskRoutes");
 const analyticsRouter = require("./routes/analyticsRoutes");
 const prisma = require("./db/prisma");
 const cookieParser = require("cookie-parser");
 
 const app = express();
-
-// req.user.id = null;
 
 app.set("trust proxy", 1);
 const helmet = require("helmet");
@@ -19,8 +16,8 @@ const rateLimiter = require("express-rate-limit");
 
 app.use(
   rateLimiter({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 100,
   }),
 );
 app.use(helmet());
