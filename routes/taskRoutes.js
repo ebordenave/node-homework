@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
+const jwtMiddleware = require("../middleware/jwtMiddleware");
 
 const taskController = require("../controllers/taskController");
+router.use(jwtMiddleware);
 
 router.get("/", taskController.index);
 router.post("/", taskController.create);

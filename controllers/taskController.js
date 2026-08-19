@@ -19,7 +19,7 @@ async function create(req, res, next) {
     const task = await prisma.task.create({
       data: {
         ...value,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: {
         id: true,
@@ -51,7 +51,7 @@ async function index(req, res) {
   const sortDirection = req.query.sortDirection;
 
   const whereClause = {
-    userId: global.user_id,
+    userId: req.user.id,
   };
 
   const { find } = req.query;
@@ -164,7 +164,7 @@ async function show(req, res, next) {
       where: {
         id_userId: {
           id: taskId,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       select: {
@@ -224,7 +224,7 @@ async function update(req, res, next) {
       where: {
         id_userId: {
           id,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       data: value,
@@ -262,7 +262,7 @@ async function deleteTask(req, res, next) {
       where: {
         id_userId: {
           id,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       select: {
@@ -309,7 +309,7 @@ async function bulkCreate(req, res, next) {
       title: value.title,
       isCompleted: value.isCompleted || false,
       priority: value.priority || "medium",
-      userId: global.user_id,
+      userId: req.user.id,
     });
   }
 

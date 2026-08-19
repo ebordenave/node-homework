@@ -1,6 +1,10 @@
 const crypto = require("crypto");
+const { randomUUID } = require("crypto");
+
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
+
+const jwt = require("jsonwebtoken");
 
 const prisma = require("../db/prisma.js");
 
@@ -19,6 +23,23 @@ async function comparePassword(inputPassword, storedHash) {
   const derivedKey = await scrypt(inputPassword, salt, 64);
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
+
+const cookieFlags = (req) => {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // only when HTTPS is available
+    sameSite: "Strict",
+  };
+};
+
+const setJwtCookie = (req, res, user) => {
+  // Sign JWT
+  const payload = { id: user.id, csrfToken: randomUUID() };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }); // 1 hour expiration
+  // Set cookie.  Note that the cookie flags have to be different in production and in test.
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 }); // 1 hour expiration
+  return payload.csrfToken; // this is needed in the body returned by logon() or register()
+};
 
 async function register(req, res, next) {
   if (!req.body) req.body = {};
@@ -83,14 +104,26 @@ async function register(req, res, next) {
 
       return { user: newUser, welcomeTasks };
     });
-    global.user_id = result.user.id;
 
-    res.status(201);
-    res.json({
+    const csrfToken = setJwtCookie(req, res, result.user);
+
+    // setJwtCookie(req, res, newUser)
+    res.status(201).json({
       user: result.user,
+      email: email,
+      csrfToken,
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
+
+    // global.user_id = result.user.id;
+
+    // res.status(201);
+    // res.json({
+    //   user: result.user,
+    //   welcomeTasks: result.welcomeTasks,
+    //   transactionStatus: "success",
+    // });
 
     return;
   } catch (err) {
@@ -123,15 +156,24 @@ async function logon(req, res) {
     return res.status(401).json();
   }
   const name = user.name;
-  global.user_id = user.id;
+  // req.user.id = user.id;
+  // return res.status(200).json({
+  //   name,
+  //   email: normalizedEmail,
+  // });
+  const csrfToken = setJwtCookie(req, res, user);
+
   return res.status(200).json({
-    name,
+    name: name,
     email: normalizedEmail,
+    csrfToken,
+    transactionStatus: "success",
   });
 }
 
 function logoff(req, res) {
-  global.user_id = null;
+  // req.user.id = null; I dont think this is needed
+  res.clearCookie("jwt", cookieFlags(req));
   res.status(200).json();
 }
 
