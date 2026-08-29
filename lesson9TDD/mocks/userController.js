@@ -1,35 +1,23 @@
 const prisma = require("../../db/prisma");
-const userSchema =
-  require("../validation/userSchema").userSchema;
+const userSchema = require("../validation/userSchema").userSchema;
 const { randomUUID } = require("crypto");
 const jwt = require("jsonwebtoken");
-const pool = require("../../db/pg-pool");
 
 const cookieFlags = (req) => {
   return {
-    ...(process.env.NODE_ENV === "production" && {
-      domain: req.hostname,
-    }), // add domain into cookie for production only
+    ...(process.env.NODE_ENV === "production" && { domain: req.hostname }), // add domain into cookie for production only
     // httpOnly: true, bug
     secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? "None"
-        : "Lax",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
   };
 };
 
 const setJwtCookie = (req, res, user) => {
   // Sign JWT
   const payload = { id: user.id, csrfToken: randomUUID() };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "1h",
-  }); // 1 hour expiration
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }); // 1 hour expiration
   // Set cookie.  Note that the cookie flags have to be different in production and in test.
-  res.cookie("jwt", token, {
-    ...cookieFlags(req),
-    maxAge: 3600000,
-  }); // 1 hour expiration
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 }); // 1 hour expiration
   return payload.csrfToken; // this is needed in the body returned by logon() or register()
 };
 
@@ -50,61 +38,79 @@ async function comparePassword(inputPassword, storedHash) {
 }
 
 exports.register = async (req, res, next) => {
-  const { error, value } = userSchema.validate(req.body, {
-    abortEarly: false,
-  });
+  const { error, value } = userSchema.validate(req.body, { abortEarly: false });
 
-  if (error) {
-    return res.status(400).json({
-      message: "Validation failed",
-      details: error.details,
-    });
-  }
+  if (error) return next(error);
 
-  let user = null;
+  const { email, name, password } = value;
 
-  value.hashed_password = await hashPassword(
-    value.password,
-  );
-
-  // the code to here is like the in-memory version
+  // Hash the password before storing (using scrypt from lesson 4)
+  const hashedPassword = await hashPassword(password);
+  // In your register method, after validation and password hashing:
+  // Do the Joi validation, so that value contains the user entry you want.
+  // hash the password, and put it in value.hashedPassword
+  // delete value.password as that doesn't get stored
   try {
-    user = await pool.query(
-      `INSERT INTO users (email, name, hashed_password) 
-      VALUES ($1, $2, $3) RETURNING id, email, name`,
-      [value.email, value.name, value.hashed_password],
-    ); // note that you use a parameterized query
-  } catch (e) {
-    // the email might already be registered
-    if (e.code === "23505") {
-      // this means the unique constraint for email was violated
-      // here you return the 400 and the error message.  Use a return statement, so that
-      return res.status(400).json({
-        error: "Email already registered",
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user account (similar to Assignment 6, but using tx instead of prisma)
+      const newUser = await tx.user.create({
+        data: { email, name, hashedPassword },
+        select: { id: true, email: true, name: true },
       });
-      // you don't keep going in this function
+
+      // Create 3 welcome tasks using createMany
+      const welcomeTaskData = [
+        {
+          title: "Complete your profile",
+          userId: newUser.id,
+          priority: "medium",
+        },
+        { title: "Add your first task", userId: newUser.id, priority: "high" },
+        { title: "Explore the app", userId: newUser.id, priority: "low" },
+      ];
+      await tx.task.createMany({ data: welcomeTaskData });
+
+      // Fetch the created tasks to return them
+      const welcomeTasks = await tx.task.findMany({
+        where: {
+          userId: newUser.id,
+          title: { in: welcomeTaskData.map((t) => t.title) },
+        },
+        select: {
+          id: true,
+          title: true,
+          isCompleted: true,
+          priority: true,
+        },
+      });
+
+      return { user: newUser, welcomeTasks };
+    });
+    const csrfToken = setJwtCookie(req, res, result.user);
+    delete result.user.id;
+    // Send response with status 201
+    res.status(201).json({
+      user: result.user,
+      welcomeTasks: result.welcomeTasks,
+      transactionStatus: "success",
+      csrfToken,
+    });
+    return;
+  } catch (err) {
+    if (err.code === "P2002") {
+      // send the appropriate error back -- the email was already registered
+      return res.status(400).json({ error: "Email already registered" });
+    } else {
+      return next(err); // the error handler takes care of other errors
     }
-    return next(e); // all other errors get passed to the error handler
   }
-  // otherwise user now contains the new user.  You can return a 201 and the appropriate
-  const newUser = user.rows[0];
-
-  // object.  Be sure to also set global.user_id with the id of the user record you just created.
-  global.user_id = newUser.id;
-
-  return res.status(201).json({
-    name: newUser.name,
-    email: newUser.email,
-  });
 };
 
 exports.logon = async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res
-      .status(400)
-      .json({ message: "Email and password are required" });
+    return res.status(400).json({ message: "Email and password are required" });
   }
 
   // Find user by email
@@ -113,15 +119,10 @@ exports.logon = async (req, res) => {
   });
 
   if (!user) {
-    return res
-      .status(401)
-      .json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  // const isValidPassword = await comparePassword(
-  //   password,
-  //   user.hashedPassword,
-  // );
+  const isValidPassword = await comparePassword(password, user.hashedPassword);
 
   // if (!isValidPassword) {
   //   return res.status(401).json({ message: "Invalid credentials" });
@@ -147,9 +148,7 @@ exports.show = async (req, res) => {
   const userId = parseInt(req.params.id);
 
   if (isNaN(userId)) {
-    return res
-      .status(400)
-      .json({ error: "Invalid user ID" });
+    return res.status(400).json({ error: "Invalid user ID" });
   }
 
   const user = await prisma.user.findUnique({
@@ -173,9 +172,7 @@ exports.show = async (req, res) => {
     },
   });
   if (!user) {
-    return res
-      .status(404)
-      .json({ message: "User not found" });
+    return res.status(404).json({ message: "User not found" });
   }
 
   res.status(200).json(user);
