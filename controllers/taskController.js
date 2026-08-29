@@ -131,6 +131,10 @@ async function index(req, res) {
     where: whereClause,
   });
 
+  if (totalTasks === 0) {
+    return res.status(404).json();
+  }
+
   const pagination = {
     page,
     limit,
@@ -220,7 +224,7 @@ async function update(req, res, next) {
       where: {
         id_userId: {
           id,
-          userId: req.user.id,
+          userId: req.user.id, //!
         },
       },
       data: value,
