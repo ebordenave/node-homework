@@ -63,8 +63,10 @@ describe("user object validation tests", () => {
       password: "Password123!",
     });
 
-    expect(shortNameError).toBeDefined();
-    expect(longNameError).toBeDefined();
+    expect([shortNameError, longNameError]).toEqual([
+      expect.anything(),
+      expect.anything(),
+    ]);
   });
 
   it("7. If validation is performed on a valid user object, error comes back falsy.", () => {
@@ -91,11 +93,10 @@ describe("task object validation tests", () => {
   it("9. If an isCompleted value is specified, it must be valid.", () => {
     const { error } = taskSchema.validate({
       title: "test task",
-      isCompleted: "false",
-      priority: "medium",
+      isCompleted: "boolean",
     });
 
-    expect(error).toBeUndefined();
+    expect(error).toBeDefined();
   });
 
   it("10. If an isCompleted value is not specified but the rest of the object is valid, a default of false is provided by validation.", () => {

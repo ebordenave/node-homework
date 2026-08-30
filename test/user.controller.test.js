@@ -12,6 +12,7 @@ const jwt = require("jsonwebtoken");
 // a few useful globals
 let saveRes = null;
 let saveData = null;
+let registerRes = null;
 
 const cookie = require("cookie");
 function MockResponseWithCookies() {
@@ -48,9 +49,9 @@ describe("testing logon, register, and logoff", () => {
       method: "POST",
       body: { name: "Bob", email: "bob@sample.com", password: "Pa$$word20" },
     });
-    saveRes = MockResponseWithCookies();
-    await waitForRouteHandlerCompletion(register, req, saveRes);
-    expect(saveRes.statusCode).toBe(201); // success!
+    registerRes = MockResponseWithCookies();
+    await waitForRouteHandlerCompletion(register, req, registerRes);
+    expect(registerRes.statusCode).toBe(201); // success!
   });
   it("34. The user can logon.", async () => {
     const req = httpMocks.createRequest({
@@ -70,10 +71,12 @@ describe("testing logon, register, and logoff", () => {
     expect(setCookieArray.some((ch) => ch.includes("HttpOnly;"))).toBe(true);
   });
   it("37. The returned data from the register has the expected name.", async () => {
-    saveData = saveRes._getJSONData();
+    saveData = registerRes._getJSONData();
     expect(saveData.name).toBe("Bob");
   });
   it("38. The returned data contains a csrfToken.", () => {
+    const saveData = registerRes._getJSONData();
+
     expect(Boolean(saveData.csrfToken)).toBe(true);
   });
   it("39. You can now logoff.", async () => {
