@@ -25,11 +25,9 @@ let saveData = null;
 let saveTaskId = null;
 
 beforeAll(async () => {
-  //! Clear the database before running the tests.
   await prisma.Task.deleteMany();
   await prisma.User.deleteMany();
 
-  //! Create users that can be used during testing.
   user1 = await prisma.User.create({
     data: {
       name: "Bob",
@@ -48,44 +46,8 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-  //! Disconnect from the database after testing.
   prisma.$disconnect();
 });
-
-//! BEFORE:
-// The create controller takes req and res, so node-http-mocks simulates those objects.
-// This calls the create controller directly with a valid task and expects a 201.
-
-//! Delete this test after running it and seeing the failure.
-// describe("testing task creation", () => {
-//   it("14. Creates a task", async () => {
-//     const req = httpMocks.createRequest({
-//       method: "POST",
-//       body: {
-//         title: "first task",
-//       },
-//     });
-
-//!     // Simulate the response object and pass the EventEmitter class.
-//     saveRes = httpMocks.createResponse({
-//       eventEmitter: EventEmitter,
-//     });
-
-//     await waitForRouteHandlerCompletion(create, req, saveRes);
-
-//     expect(saveRes.statusCode).toBe(201);
-//   });
-// });
-
-//! WHY THE FIRST TEST FAILS:
-// Task creation is protected by JWT middleware, which sets up req.user.
-// Calling the controller directly bypasses that middleware, so req.user is undefined.
-
-//! AFTER:
-// Since req.user is missing, this test expects and catches that specific error.
-// expect.assertions(1) makes sure the expect inside the catch block actually runs.
-
-// Uncomment this after running and removing the first test.
 
 describe("testing task creation", () => {
   it("14. cant create a task without a user id", async () => {
@@ -198,8 +160,7 @@ describe("testing task creation", () => {
     });
     it("24. The first array object does not contain a userId.", () => {
       saveData = saveRes._getJSONData();
-      // console.log(saveData.tasks[0].User);
-      expect(saveData.tasks[0].User.id).toBeUndefined();
+      expect(saveData.tasks[0].userId).toBeUndefined();
     });
     it("25. If you get the list of tasks using the userId from user2, you get a 404.", async () => {
       const req = httpMocks.createRequest({

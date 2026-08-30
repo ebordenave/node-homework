@@ -224,7 +224,7 @@ async function update(req, res, next) {
       where: {
         id_userId: {
           id,
-          userId: req.user.id, //!
+          userId: req.user.id,
         },
       },
       data: value,
