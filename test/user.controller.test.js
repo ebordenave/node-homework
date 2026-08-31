@@ -62,9 +62,11 @@ describe("testing logon, register, and logoff", () => {
     await waitForRouteHandlerCompletion(logon, req, saveRes);
     expect(saveRes.statusCode).toBe(200); // success!
   });
-  it("35. A string in the cookie array starts with 'jwt=.'", () => {
+  it("35. A string in the cookie array starts with 'jwt='", () => {
     const setCookieArray = saveRes.get("Set-Cookie");
-    expect(setCookieArray.some((ch) => ch.startsWith("jwt="))).toBe(true);
+    const jwtCookie = setCookieArray.find((ch) => ch.startsWith("jwt="));
+
+    expect(jwtCookie.startsWith("jwt=")).toBe(true);
   });
   it("36. That string contains 'HttpOnly;'.  (This is a security test!)", () => {
     const setCookieArray = saveRes.get("Set-Cookie");
