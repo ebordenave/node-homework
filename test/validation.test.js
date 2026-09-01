@@ -50,36 +50,6 @@ describe("user object validation tests", () => {
     expect(error).toBeDefined();
   });
 
-  // it("6. The name must be at least 3 characters.", () => {
-  //   const { error } = userSchema.validate({
-  //     name: "Bo",
-  //     email: "bob@sample.com",
-  //     password: "Password123!",
-  //   });
-
-  //   expect(error).toBeDefined();
-  // });
-
-  // it("6. The name must be valid (3 to 30 characters).", () => {
-  //   const { value } = userSchema.validate({
-  //     name: "Bo",
-  //     email: "bob@sample.com",
-  //     password: "Password123!",
-  //   });
-
-  //   expect(value.name.length >= 3 && value.name.length <= 30).toBe(false);
-  // });
-
-  // it("The name must not exceed 30 characters.", () => {
-  //   const { error } = userSchema.validate({
-  //     name: "B".repeat(31),
-  //     email: "bob@sample.com",
-  //     password: "Password123!",
-  //   });
-
-  //   expect(error).toBeDefined();
-  // });
-
   it("6. The name must be valid (3 to 30 characters).", () => {
     const { error: shortNameError } = userSchema.validate({
       name: "Bo",
@@ -98,15 +68,6 @@ describe("user object validation tests", () => {
       expect.anything(),
     ]);
   });
-  // it("6. The name must be valid (3 to 30 characters).", () => {
-  //   const { error } = userSchema.validate({
-  //     name: "Bo",
-  //     email: "bob@sample.com",
-  //     password: "Password123!",
-  //   });
-
-  //   expect(error).toBeDefined();
-  // });
 
   it("7. If validation is performed on a valid user object, error comes back falsy.", () => {
     const { error } = userSchema.validate({
