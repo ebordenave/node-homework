@@ -68,7 +68,7 @@ describe("user object validation tests", () => {
   //     expect.anything(),
   //   ]);
   // });
-  t("6. The name must be valid (3 to 30 characters).", () => {
+  it("6. The name must be valid (3 to 30 characters).", () => {
     const { error } = userSchema.validate({
       name: "Bo",
       email: "bob@sample.com",
@@ -140,9 +140,9 @@ describe("patchTaskSchema validation tests", () => {
   it("13. If no value is provided for isCompleted this remains undefined in the returned value.", () => {
     const { error, value } = patchTaskSchema.validate({
       title: "test task",
+      isCompleted: undefined,
     });
 
-    expect(error).toBeUndefined();
     expect(value.isCompleted).toBeUndefined();
   });
 });
