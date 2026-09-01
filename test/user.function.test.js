@@ -3,14 +3,13 @@ const request = require("supertest");
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 const prisma = require("../db/prisma");
 
-const httpMocks = require("node-mocks-http");
-const waitForRouteHandlerCompletion = require("./waitForRouteHandlerCompletion");
+// const httpMocks = require("node-mocks-http");
+// const waitForRouteHandlerCompletion = require("./waitForRouteHandlerCompletion");
+// const { logon } = require("../controllers/userController");
 
 let agent;
-let saveRes;
+// let saveRes;
 const { app, server } = require("../app");
-
-const { logon } = require("../controllers/userController");
 
 beforeAll(async () => {
   // clear database

@@ -168,7 +168,7 @@ describe("patchTaskSchema validation tests", () => {
   });
 
   it("13. If no value is provided for isCompleted this remains undefined in the returned value.", () => {
-    const { error, value } = patchTaskSchema.validate({
+    const { value } = patchTaskSchema.validate({
       title: "test task",
     });
 
