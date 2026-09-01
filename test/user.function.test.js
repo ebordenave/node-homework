@@ -54,6 +54,7 @@ describe("register a user ", () => {
     expect(saveRes.statusCode).not.toBe(401);
   });
   it("51. Verify that you can log out.", async () => {
+    // agent preserves the JWT cookie from the login request
     saveRes = await agent.post("/user/logoff").set("X-CSRF-TOKEN", csrfToken);
     expect(saveRes.statusCode).toBe(200);
   });
