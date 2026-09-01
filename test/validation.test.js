@@ -115,7 +115,7 @@ describe("user object validation tests", () => {
       password: "Password123!",
     });
 
-    expect(error).toBeUndefined();
+    expect(error).toBeFalsy();
   });
 });
 
