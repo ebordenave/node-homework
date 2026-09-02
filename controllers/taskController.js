@@ -131,6 +131,10 @@ async function index(req, res) {
     where: whereClause,
   });
 
+  if (totalTasks === 0) {
+    return res.status(404).json();
+  }
+
   const pagination = {
     page,
     limit,
