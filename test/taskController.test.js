@@ -15,7 +15,7 @@ const {
 } = require("../controllers/taskController");
 const waitForRouteHandlerCompletion = require("./waitForRouteHandlerCompletion");
 const { Prisma } = require("@prisma/client");
-const expectCookies = require("supertest/lib/cookies");
+// const expectCookies = require("supertest/lib/cookies");
 
 // A few useful globals
 let user1 = null;
@@ -151,7 +151,7 @@ describe("testing task creation", () => {
     it("22. The returned object has a tasks array of length 1.", async () => {
       saveData = saveRes._getJSONData();
 
-      expect(saveData.tasks.length).toBe(1);
+      expect(saveData.tasks).toHaveLength(1);
     });
     it("23. The title in the first array object is as expected.", () => {
       saveData = saveRes._getJSONData();

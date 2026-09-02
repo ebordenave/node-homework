@@ -74,7 +74,7 @@ describe("testing logon, register, and logoff", () => {
   });
   it("37. The returned data from the register has the expected name.", async () => {
     saveData = registerRes._getJSONData();
-    expect(saveData.name).toBe("Bob");
+    expect(saveData.user.name).toBe("Bob");
   });
   it("38. The returned data contains a csrfToken.", () => {
     const saveData = registerRes._getJSONData();
