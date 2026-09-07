@@ -171,15 +171,22 @@ async function logon(req, res) {
   });
 
   if (!user) {
-    return res.status(401).json();
+    return res.status(401).json({
+      message: "Invalid email or password",
+    });
   }
   const goodCredentials = await comparePassword(password, user.hashedPassword);
+
   if (!goodCredentials) {
-    return res.status(401).json();
+    return res.status(401).json({
+      message: "Invalid email or password",
+    });
   }
   const name = user.name;
 
   const csrfToken = setJwtCookie(req, res, user);
+
+  console.log(res);
 
   return res.status(200).json({
     name: name,
