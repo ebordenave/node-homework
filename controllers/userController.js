@@ -1,14 +1,11 @@
 const crypto = require("crypto");
 const { randomUUID } = require("crypto");
-
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
-
 const jwt = require("jsonwebtoken");
-
 const prisma = require("../db/prisma.js");
-
 const { userSchema } = require("../validation/userSchema");
+const { StatusCodes } = require("http-status-codes");
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -24,6 +21,7 @@ async function comparePassword(inputPassword, storedHash) {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 
+// eslint-disable-next-line no-unused-vars
 const cookieFlags = (req) => {
   return {
     httpOnly: true,
@@ -42,6 +40,40 @@ const setJwtCookie = (req, res, user) => {
 
 async function register(req, res, next) {
   if (!req.body) req.body = {};
+
+  let isPerson = false;
+  if (req.body.recaptchaToken) {
+    const token = req.body.recaptchaToken;
+    const params = new URLSearchParams();
+    params.append("secret", process.env.RECAPTCHA_SECRET);
+    params.append("response", token);
+    params.append("remoteip", req.ip);
+    const response = await fetch(
+      // might throw an error that would cause a 500 from the error handler
+      "https://www.google.com/recaptcha/api/siteverify",
+      {
+        method: "POST",
+        body: params.toString(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
+    const data = await response.json();
+    if (data.success) isPerson = true;
+    delete req.body.recaptchaToken;
+  } else if (
+    process.env.RECAPTCHA_BYPASS &&
+    req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
+  ) {
+    // might be a test environment
+    isPerson = true;
+  }
+  if (!isPerson) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Bot verification failed. Please complete the reCAPTCHA.",
+    });
+  }
 
   const { error, value } = userSchema.validate(req.body, {
     abortEarly: false,
@@ -139,15 +171,22 @@ async function logon(req, res) {
   });
 
   if (!user) {
-    return res.status(401).json();
+    return res.status(401).json({
+      message: "Invalid email or password",
+    });
   }
   const goodCredentials = await comparePassword(password, user.hashedPassword);
+
   if (!goodCredentials) {
-    return res.status(401).json();
+    return res.status(401).json({
+      message: "Invalid email or password",
+    });
   }
   const name = user.name;
 
   const csrfToken = setJwtCookie(req, res, user);
+
+  console.log(res);
 
   return res.status(200).json({
     name: name,
