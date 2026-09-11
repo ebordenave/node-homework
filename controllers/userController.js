@@ -6,6 +6,8 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../db/prisma.js");
 const { userSchema } = require("../validation/userSchema");
 const { StatusCodes } = require("http-status-codes");
+const { OAuth2Client } = require("google-auth-library");
+const oAuth2Client = new OAuth2Client();
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -157,6 +159,42 @@ async function register(req, res, next) {
   }
 }
 
+async function googleLogon(req, res) {
+  console.log("googleLogon is being triggered");
+  const { authorizationCode } = req.body;
+  // console.log(req.body)
+  // console.log(authorizationCode); // sanity check here?
+  const { tokens } = await oAuth2Client.getToken(authorizationCode);
+
+  const loginTicket = await oAuth2Client.verifyIdToken({
+    idToken: tokens.id_token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = loginTicket.getPayload();
+  const userid = payload["sub"];
+
+  oAuth2Client.setCredentials(tokens);
+
+  // if (!token) {
+  //   return res.status(400).json({
+  //     error: "Token is required",
+  //   });
+  // }
+  // const userProfile = await verifyGoogleToken(token);
+
+  // if (!userProfile) {
+  //   return res.status(401).json({
+  //     error: "Invalid Google token",
+  //   });
+  // }
+
+  return res.status(200).json({
+    message: "successful login",
+    // user: userProfile,
+  });
+}
+
 async function logon(req, res) {
   const { email, password } = req.body;
 
@@ -185,8 +223,6 @@ async function logon(req, res) {
   const name = user.name;
 
   const csrfToken = setJwtCookie(req, res, user);
-
-  console.log(res);
 
   return res.status(200).json({
     name: name,
@@ -240,4 +276,5 @@ module.exports = {
   logon,
   logoff,
   show,
+  googleLogon,
 };
