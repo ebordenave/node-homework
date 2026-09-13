@@ -7,7 +7,11 @@ const prisma = require("../db/prisma.js");
 const { userSchema } = require("../validation/userSchema");
 const { StatusCodes } = require("http-status-codes");
 const { OAuth2Client } = require("google-auth-library");
-const oAuth2Client = new OAuth2Client();
+const oAuth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI,
+);
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -39,6 +43,55 @@ const setJwtCookie = (req, res, user) => {
   res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 });
   return payload.csrfToken;
 };
+
+async function createUserWithWelcomeTasks(name, email, hashedPassword = null) {
+  const result = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { email, name, hashedPassword },
+      select: { id: true, email: true, name: true },
+    });
+
+    const welcomeTaskData = [
+      {
+        title: "Complete your profile",
+        userId: newUser.id,
+        priority: "medium",
+      },
+      {
+        title: "Add your first task",
+        userId: newUser.id,
+        priority: "high",
+      },
+      {
+        title: "Explore the app",
+        userId: newUser.id,
+        priority: "low",
+      },
+    ];
+
+    await tx.task.createMany({ data: welcomeTaskData });
+
+    const welcomeTasks = await tx.task.findMany({
+      where: {
+        userId: newUser.id,
+        title: {
+          in: welcomeTaskData.map((t) => t.title),
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        isCompleted: true,
+        userId: true,
+        priority: true,
+      },
+    });
+
+    return { user: newUser, welcomeTasks };
+  });
+
+  return result;
+}
 
 async function register(req, res, next) {
   if (!req.body) req.body = {};
@@ -94,50 +147,11 @@ async function register(req, res, next) {
   const { name, email, hashedPassword } = value;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: { email, name, hashedPassword },
-        select: { id: true, email: true, name: true },
-      });
-
-      const welcomeTaskData = [
-        {
-          title: "Complete your profile",
-          userId: newUser.id,
-          priority: "medium",
-        },
-        {
-          title: "Add your first task",
-          userId: newUser.id,
-          priority: "high",
-        },
-        {
-          title: "Explore the app",
-          userId: newUser.id,
-          priority: "low",
-        },
-      ];
-      await tx.task.createMany({ data: welcomeTaskData });
-
-      const welcomeTasks = await tx.task.findMany({
-        where: {
-          userId: newUser.id,
-          title: {
-            in: welcomeTaskData.map((t) => t.title),
-          },
-        },
-        select: {
-          id: true,
-          title: true,
-          isCompleted: true,
-          userId: true,
-          priority: true,
-        },
-      });
-
-      return { user: newUser, welcomeTasks };
-    });
-
+    const result = await createUserWithWelcomeTasks(
+      name,
+      email,
+      hashedPassword,
+    );
     const csrfToken = setJwtCookie(req, res, result.user);
 
     res.status(201).json({
@@ -148,7 +162,6 @@ async function register(req, res, next) {
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
-
     return;
   } catch (err) {
     if (err.code === "P2002") {
@@ -160,10 +173,7 @@ async function register(req, res, next) {
 }
 
 async function googleLogon(req, res) {
-  console.log("googleLogon is being triggered");
   const { authorizationCode } = req.body;
-  // console.log(req.body)
-  // console.log(authorizationCode); // sanity check here?
   const { tokens } = await oAuth2Client.getToken(authorizationCode);
 
   const loginTicket = await oAuth2Client.verifyIdToken({
@@ -172,26 +182,32 @@ async function googleLogon(req, res) {
   });
 
   const payload = loginTicket.getPayload();
-  const userid = payload["sub"];
+  // console.log(payload);
+  const { name, email } = payload;
+  // const userid = payload["sub"]; //! save this for later, may require schema change.
 
-  oAuth2Client.setCredentials(tokens);
+  const normalizedEmail = email.toLowerCase();
 
-  // if (!token) {
-  //   return res.status(400).json({
-  //     error: "Token is required",
-  //   });
-  // }
-  // const userProfile = await verifyGoogleToken(token);
+  let user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
 
-  // if (!userProfile) {
-  //   return res.status(401).json({
-  //     error: "Invalid Google token",
-  //   });
-  // }
+  if (!user) {
+    const result = await createUserWithWelcomeTasks(name, normalizedEmail);
+    user = result.user;
+  }
+
+  const csrfToken = setJwtCookie(req, res, user);
 
   return res.status(200).json({
-    message: "successful login",
-    // user: userProfile,
+    name: name,
+    email: normalizedEmail,
+    csrfToken,
+    transactionStatus: "success",
   });
 }
 
