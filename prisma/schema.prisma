@@ -10,12 +10,21 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserRole {
+  USER
+  MANAGER
+  ADMIN
+}
+
+
 model User {
   id             Int      @id @default(autoincrement())
   email          String   @unique @db.VarChar(255)
   name           String   @db.VarChar(30)
   hashedPassword String?   @map("hashed_password") @db.VarChar(255)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  role           UserRole @default(USER)
+
 
   Task           Task[]
 
