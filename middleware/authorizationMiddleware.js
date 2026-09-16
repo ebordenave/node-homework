@@ -19,14 +19,12 @@ function authorizeRoles(allowedRoles) {
         },
       });
 
-      //! user doesn't exist
       if (!user) {
         return res.status(404).json({
           message: "404 Not Found",
         });
       }
 
-      //! user exists, but role isn't permitted
       if (!allowedRoles.includes(user.role)) {
         return res.status(403).json({
           message: "403 Forbidden",

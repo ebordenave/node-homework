@@ -104,7 +104,6 @@ async function register(req, res, next) {
     params.append("response", token);
     params.append("remoteip", req.ip);
     const response = await fetch(
-      // might throw an error that would cause a 500 from the error handler
       "https://www.google.com/recaptcha/api/siteverify",
       {
         method: "POST",
@@ -121,7 +120,6 @@ async function register(req, res, next) {
     process.env.RECAPTCHA_BYPASS &&
     req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
   ) {
-    // might be a test environment
     isPerson = true;
   }
   if (!isPerson) {
@@ -182,9 +180,9 @@ async function googleLogon(req, res) {
   });
 
   const payload = loginTicket.getPayload();
-  // console.log(payload);
+
   const { name, email } = payload;
-  // const userid = payload["sub"]; //! save this for later, may require schema change.
+  // const userid = payload["sub"];
 
   const normalizedEmail = email.toLowerCase();
 
