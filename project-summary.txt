@@ -1,1 +1,81 @@
 https://node-homework-ws.onrender.com
+
+1. Google OAuth
+I added Google OAuth authentication using the authorization code flow defined in the Google documentation listed below. Existing users can sign in using this method, while new users can both register and sign in using their Google account. After authentication occurs, the backend connects the Google account to a local user account and creates the application's normal authenticated session. I also modified the Prisma Schema so that hashedPassword is optional, since a user who registers through Google Sign-In does not need to create or provide a password.
+
+Documentation: https://developers.google.com/identity/oauth2/web/guides/use-code-model
+
+REST API:
+POST /api/users/googleLogon
+
+Request body:
+{
+  "authorizationCode": "Google authorization code"
+}
+
+2. Role-Based Access Control (RBAC)
+- USER: Can view their own analytics but cannot view another user's analytics or analytics for all users.
+- MANAGER: Can view their own analytics, another user's analytics, and analytics for all users.
+- ADMIN: Can view their own analytics, another user's analytics, and analytics for all users. Additional ADMIN-specific permissions were not implemented. Currently has the same analytics permissions as MANAGER
+
+I added the three roles listed above and modified the Prisma Schema so that all users default to the USER role. This ensures that every user has a defined role and prevents the role field from being null.
+
+One deviation from the suggested CTD implementation is that I read the user's current role from the database during authorization instead of storing the role in the JWT. I chose to do this because I wanted the database to be the source of truth for the user's role. This also means that if a user's role changes, the change takes effect on their next request without requiring them to log in again.
+
+I also used a Prisma enum for the roles instead of a comma-separated string. I added USER, MANAGER, and ADMIN, and set USER as the default so that every user has a role.
+
+Another difference is that I return 403 Forbidden when a logged-in user tries to access something their role does not allow. I kept 401 Unauthorized for cases where the user is not authenticated.
+
+REST APIs:
+
+GET /api/analytics/users/:id
+Path parameters:
+- id: ID of the user whose analytics are requested
+
+Query parameters:
+- None
+
+Request body:
+- None
+
+Access:
+- USER: own analytics only
+- MANAGER: own or other users' analytics
+- ADMIN: own or other users' analytics
+
+
+GET /api/analytics/users
+Path parameters:
+- None
+
+Query parameters:
+- page: optional page number
+- limit: optional number of users per page
+
+Request body:
+- None
+
+Access:
+- MANAGER
+- ADMIN
+
+
+GET /api/analytics/tasks/search
+Path parameters:
+- None
+
+Query parameters:
+- q: search text (minimum 2 characters)
+- limit: optional maximum number of results
+
+Request body:
+- None
+
+Access:
+- MANAGER
+- ADMIN
+
+
+Additional Documentation: I added JSDoc comments to the new authorization functions to document their purpose, parameters, and expected behavior.
+
+Presentation video link: https://youtu.be/g7YEtnu6cZo

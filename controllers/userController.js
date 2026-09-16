@@ -6,6 +6,12 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../db/prisma.js");
 const { userSchema } = require("../validation/userSchema");
 const { StatusCodes } = require("http-status-codes");
+const { OAuth2Client } = require("google-auth-library");
+const oAuth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI,
+);
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -38,6 +44,55 @@ const setJwtCookie = (req, res, user) => {
   return payload.csrfToken;
 };
 
+async function createUserWithWelcomeTasks(name, email, hashedPassword = null) {
+  const result = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { email, name, hashedPassword },
+      select: { id: true, email: true, name: true },
+    });
+
+    const welcomeTaskData = [
+      {
+        title: "Complete your profile",
+        userId: newUser.id,
+        priority: "medium",
+      },
+      {
+        title: "Add your first task",
+        userId: newUser.id,
+        priority: "high",
+      },
+      {
+        title: "Explore the app",
+        userId: newUser.id,
+        priority: "low",
+      },
+    ];
+
+    await tx.task.createMany({ data: welcomeTaskData });
+
+    const welcomeTasks = await tx.task.findMany({
+      where: {
+        userId: newUser.id,
+        title: {
+          in: welcomeTaskData.map((t) => t.title),
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        isCompleted: true,
+        userId: true,
+        priority: true,
+      },
+    });
+
+    return { user: newUser, welcomeTasks };
+  });
+
+  return result;
+}
+
 async function register(req, res, next) {
   if (!req.body) req.body = {};
 
@@ -49,7 +104,6 @@ async function register(req, res, next) {
     params.append("response", token);
     params.append("remoteip", req.ip);
     const response = await fetch(
-      // might throw an error that would cause a 500 from the error handler
       "https://www.google.com/recaptcha/api/siteverify",
       {
         method: "POST",
@@ -66,7 +120,6 @@ async function register(req, res, next) {
     process.env.RECAPTCHA_BYPASS &&
     req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
   ) {
-    // might be a test environment
     isPerson = true;
   }
   if (!isPerson) {
@@ -92,50 +145,11 @@ async function register(req, res, next) {
   const { name, email, hashedPassword } = value;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: { email, name, hashedPassword },
-        select: { id: true, email: true, name: true },
-      });
-
-      const welcomeTaskData = [
-        {
-          title: "Complete your profile",
-          userId: newUser.id,
-          priority: "medium",
-        },
-        {
-          title: "Add your first task",
-          userId: newUser.id,
-          priority: "high",
-        },
-        {
-          title: "Explore the app",
-          userId: newUser.id,
-          priority: "low",
-        },
-      ];
-      await tx.task.createMany({ data: welcomeTaskData });
-
-      const welcomeTasks = await tx.task.findMany({
-        where: {
-          userId: newUser.id,
-          title: {
-            in: welcomeTaskData.map((t) => t.title),
-          },
-        },
-        select: {
-          id: true,
-          title: true,
-          isCompleted: true,
-          userId: true,
-          priority: true,
-        },
-      });
-
-      return { user: newUser, welcomeTasks };
-    });
-
+    const result = await createUserWithWelcomeTasks(
+      name,
+      email,
+      hashedPassword,
+    );
     const csrfToken = setJwtCookie(req, res, result.user);
 
     res.status(201).json({
@@ -146,7 +160,6 @@ async function register(req, res, next) {
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
-
     return;
   } catch (err) {
     if (err.code === "P2002") {
@@ -155,6 +168,45 @@ async function register(req, res, next) {
       return next(err);
     }
   }
+}
+
+async function googleLogon(req, res) {
+  const { authorizationCode } = req.body;
+  const { tokens } = await oAuth2Client.getToken(authorizationCode);
+
+  const loginTicket = await oAuth2Client.verifyIdToken({
+    idToken: tokens.id_token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = loginTicket.getPayload();
+
+  const { name, email } = payload;
+  // const userid = payload["sub"];
+
+  const normalizedEmail = email.toLowerCase();
+
+  let user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+
+  if (!user) {
+    const result = await createUserWithWelcomeTasks(name, normalizedEmail);
+    user = result.user;
+  }
+
+  const csrfToken = setJwtCookie(req, res, user);
+
+  return res.status(200).json({
+    name: name,
+    email: normalizedEmail,
+    csrfToken,
+    transactionStatus: "success",
+  });
 }
 
 async function logon(req, res) {
@@ -185,8 +237,6 @@ async function logon(req, res) {
   const name = user.name;
 
   const csrfToken = setJwtCookie(req, res, user);
-
-  console.log(res);
 
   return res.status(200).json({
     name: name,
@@ -240,4 +290,5 @@ module.exports = {
   logon,
   logoff,
   show,
+  googleLogon,
 };

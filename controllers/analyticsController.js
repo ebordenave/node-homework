@@ -1,86 +1,130 @@
 const prisma = require("../db/prisma");
 
-async function getUserAnalytics(req, res) {
-  const userId = parseInt(req.params.id);
+/**
+ * Retrieves analytics for a requested user.
+ * Users may view their own analytics.
+ * Managers and admins may view analytics for other users.
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {import("express").NextFunction} next
+ */
+async function getUserAnalytics(req, res, next) {
+  const requestedUserId = parseInt(req.params.id);
+  const loggedInUserId = req.user.id;
 
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
+  if (isNaN(requestedUserId)) {
+    return res.status(400).json({
+      error: "Invalid user ID",
+    });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      createdAt: true,
-      Task: {
-        where: { isCompleted: false },
-        select: {
-          id: true,
-          title: true,
-          priority: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-    },
-  });
+  try {
+    const isOwnAnalytics = requestedUserId === loggedInUserId;
 
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+    if (!isOwnAnalytics) {
+      const loggedInUser = await prisma.user.findUnique({
+        where: {
+          id: loggedInUserId,
+        },
+        select: {
+          role: true,
+        },
+      });
+
+      if (!loggedInUser) {
+        return res.status(404).json({
+          message: "Logged-in user not found",
+        });
+      }
+
+      const canViewOtherUsers =
+        loggedInUser.role === "MANAGER" || loggedInUser.role === "ADMIN";
+
+      if (!canViewOtherUsers) {
+        return res.status(403).json({
+          message: "403 Forbidden",
+        });
+      }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: requestedUserId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        Task: {
+          where: {
+            isCompleted: false,
+          },
+          select: {
+            id: true,
+            title: true,
+            priority: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const taskStats = await prisma.task.groupBy({
+      where: {
+        userId: requestedUserId,
+      },
+      by: ["isCompleted"],
+      _count: {
+        id: true,
+      },
+    });
+
+    const recentTasks = await prisma.task.findMany({
+      where: {
+        userId: requestedUserId,
+      },
+      select: {
+        id: true,
+        title: true,
+        isCompleted: true,
+        priority: true,
+        createdAt: true,
+        userId: true,
+        User: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    });
+
+    return res.status(200).json({
+      user,
+      taskStats,
+      recentTasks,
+    });
+  } catch (error) {
+    return next(error);
   }
-
-  const taskStats = await prisma.task.groupBy({
-    where: { userId },
-    by: ["isCompleted"],
-    _count: {
-      id: true,
-    },
-  });
-
-  const recentTasks = await prisma.task.findMany({
-    where: { userId },
-    select: {
-      id: true,
-      title: true,
-      isCompleted: true,
-      priority: true,
-      createdAt: true,
-      userId: true,
-      User: {
-        select: {
-          name: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
-
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-  const weeklyProgress = await prisma.task.groupBy({
-    by: ["createdAt"],
-    where: {
-      userId,
-      createdAt: { gte: oneWeekAgo },
-    },
-    _count: {
-      id: true,
-    },
-  });
-
-  return res.status(200).json({
-    taskStats,
-    recentTasks,
-    weeklyProgress,
-  });
 }
 
-async function getUsersWithStats(req, res) {
+async function getUsersWithStats(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -96,8 +140,12 @@ async function getUsersWithStats(req, res) {
     const usersRaw = await prisma.user.findMany({
       include: {
         Task: {
-          where: { isCompleted: false },
-          select: { id: true },
+          where: {
+            isCompleted: false,
+          },
+          select: {
+            id: true,
+          },
           take: 5,
         },
         _count: {
@@ -108,7 +156,9 @@ async function getUsersWithStats(req, res) {
       },
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     const users = usersRaw.map((user) => ({
@@ -136,60 +186,60 @@ async function getUsersWithStats(req, res) {
       pagination,
     });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: error.message,
-    });
+    return next(error);
   }
 }
 
-async function searchTasks(req, res) {
-  const searchQuery = req.query.q;
+async function searchTasks(req, res, next) {
+  try {
+    const searchQuery = req.query.q;
 
-  if (!searchQuery || searchQuery.trim().length < 2) {
-    return res.status(400).json({
-      error: "Search query must be at least 2 characters long",
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      return res.status(400).json({
+        error: "Search query must be at least 2 characters long",
+      });
+    }
+
+    const limit = parseInt(req.query.limit) || 20;
+
+    const searchPattern = `%${searchQuery}%`;
+    const exactMatch = searchQuery;
+    const startsWith = `${searchQuery}%`;
+
+    const results = await prisma.$queryRaw`
+      SELECT
+        t.id AS id,
+        t.title AS title,
+        t.is_completed AS "isCompleted",
+        t.priority AS priority,
+        t.created_at AS "createdAt",
+        t.user_id AS "userId",
+        u.name AS "user_name"
+      FROM tasks t
+      JOIN users u
+        ON t.user_id = u.id
+      WHERE
+        t.title ILIKE ${searchPattern}
+        OR u.name ILIKE ${searchPattern}
+      ORDER BY
+        CASE
+          WHEN t.title ILIKE ${exactMatch} THEN 1
+          WHEN t.title ILIKE ${startsWith} THEN 2
+          WHEN t.title ILIKE ${searchPattern} THEN 3
+          ELSE 4
+        END,
+        t.created_at DESC
+      LIMIT ${limit}
+    `;
+
+    return res.status(200).json({
+      results,
+      query: searchQuery,
+      count: results.length,
     });
+  } catch (error) {
+    return next(error);
   }
-
-  const limit = parseInt(req.query.limit) || 20;
-
-  const searchPattern = `%${searchQuery}%`;
-  const exactMatch = searchQuery;
-  const startsWith = `${searchQuery}%`;
-
-  const results = await prisma.$queryRaw`
-    SELECT
-      t.id AS id,
-      t.title AS title,
-      t.is_completed AS "isCompleted",
-      t.priority AS priority,
-      t.created_at AS "createdAt",
-      t.user_id AS "userId",
-      u.name AS "user_name"
-    FROM tasks t
-    JOIN users u
-      ON t.user_id = u.id
-    WHERE
-      t.title ILIKE ${searchPattern}
-      OR u.name ILIKE ${searchPattern}
-    ORDER BY
-      CASE
-        WHEN t.title ILIKE ${exactMatch} THEN 1
-        WHEN t.title ILIKE ${startsWith} THEN 2
-        WHEN t.title ILIKE ${searchPattern} THEN 3
-        ELSE 4
-      END,
-      t.created_at DESC
-    LIMIT ${limit}
-  `;
-
-  return res.status(200).json({
-    results,
-    query: searchQuery,
-    count: results.length,
-  });
 }
 
 module.exports = {
