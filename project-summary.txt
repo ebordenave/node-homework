@@ -76,4 +76,4 @@ Access:
 - ADMIN
 
 
-Additional Documentation: I added JSDoc comments to the new authorization-related functions to document their purpose, parameters, and expected behavior.
+Additional Documentation: I added JSDoc comments to the new authorization functions to document their purpose, parameters, and expected behavior.
